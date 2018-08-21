@@ -14,4 +14,4 @@ env64/
 # Other files
 *.log
 config.ini
-test_*
+test_*.py
