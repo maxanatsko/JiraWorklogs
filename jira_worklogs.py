@@ -3,8 +3,11 @@ import file_writer
 from config_reader import config as cr
 from telegram_notifications import send_telegram_message as stm
 from logger import logger
+import datetime
 
 stm("Jira worklogs script started ▶")
+start_time = datetime.datetime.now()
+
 try:
     # logging
     logger.info('Process Started')
@@ -49,6 +52,8 @@ try:
 
     # finish timestamp in the log
     logger.info('Process Finished')
-    stm("Jira worklogs script finished successfully ✅")
+    stm("Jira worklogs script finished successfully ✅. Completed in {} hours".format((
+        datetime.datetime.now() - start_time)/60/60))
 except:
-    stm("Jira worklogs script terminated with error ⛔")
+    stm("Jira worklogs script script terminated with error ⛔. Completed in {} hours".format((
+        datetime.datetime.now() - start_time)/60/60))
