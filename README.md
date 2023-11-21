@@ -39,7 +39,7 @@ To set up the project, you need to:
 3. Place the `config.ini` file with the appropriate configurations in the same directory as the scripts.
 
 ```python
-pip install jira python-telegram-bot
+pip install -r requirements.txt
 ```
 
 ## Usage
