@@ -1,29 +1,28 @@
 import logging
 import argparse
-from config_reader import config as cr
+import os
+from config_reader import read_config
 
-# adding command-line arguments
+
+# Read configuration
+config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
+config = read_config(config_file)
+
+# Adding command-line arguments for log level
 parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--log", help="you can pass --log (-l) argument: INFO/WARN/DEBUG", type=str)
-# parse command-line arguments
 args = parser.parse_args()
 
-log_level = ""
-#read config
-log_level = cr.get('Dev', 'log_level')
-
-# if log_level is null
-if args.log is not None and log_level is None:
+# Setting log level from config file or command line argument
+log_level = config.get('Dev', 'log_level') if config.get('Dev', 'log_level') else "INFO"
+if args.log:
     log_level = args.log
-if args.log is None and log_level is not None:
-    log_level = log_level
-else:
-    log_level = "INFO"
 
+# Setting up the logger
 logger = logging.getLogger()
-logger.setLevel(log_level) # or whatever
+logger.setLevel(log_level.upper())
+
 handler = logging.FileHandler('system_log.log', 'a+', 'utf-8')
 formatter = logging.Formatter('%(asctime)s: %(levelname)s: %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-

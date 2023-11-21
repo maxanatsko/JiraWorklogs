@@ -1,59 +1,66 @@
 from jira import JIRA
 import file_writer
-from config_reader import config as cr
+from config_reader import read_config
 from telegram_notifications import send_telegram_message as stm
 from logger import logger
 import datetime
+import os
 
-stm("Jira worklogs script started ▶")
-start_time = datetime.datetime.now()
 
-try:
-    # logging
-    logger.info('Process Started')
-    print('Started logging')
+def establish_jira_connection(config):
+    """Establishes connection to JIRA."""
+    try:
+        options = {'server': config.get('Server', 'jira_url'), 'async': True}
+        jira = JIRA(options, basic_auth=(config.get('Auth', 'username'), config.get('Auth', 'password')))
+        logger.info('Connected to Jira')
+        return jira
+    except Exception as e:
+        logger.error(f'Error connecting to JIRA: {e}')
+        raise
 
-    # Get data from config file
-    username = cr.get('Auth', 'username')
-    password = cr.get('Auth', 'password')
-    jira_url = cr.get('Server', 'jira_url')
-    jql_query = cr.get('Jira', 'jql_query')
-    max_results = cr.get('Jira', 'max_results')
-    file_name = cr.get('Results', 'file_name')
-    print('Finished reading config file')
 
-    options = {
-        'server': jira_url,
-        'async': True}
+def retrieve_issues(jira, config):
+    """Retrieves issues from JIRA based on provided JQL query."""
+    try:
+        jql_query = config.get('Jira', 'jql_query')
+        max_results = int(config.get('Jira', 'max_results'))
+        issues = jira.search_issues(jql_query, maxResults=max_results)
+        logger.info('Issues retrieved from Jira')
+        return issues
+    except Exception as e:
+        logger.error(f'Error retrieving issues from JIRA: {e}')
+        raise
 
-    print('Establishing connection to Jira')
-    jira = JIRA(options, basic_auth=(username, password))
 
-    # Get all projects viewable by anonymous users.
-    # projects = jira.projects()
-    # print(projects)
-    print('Connected to Jira')
-
-    print('Retrieving issues from Jira')
-    issue_keys_list = jira.search_issues(jql_query, maxResults=300, startAt=0) + jira.search_issues(jql_query, maxResults=max_results, startAt=300)
-
-    worklog_ids = []
+def process_worklogs(jira, issues):
+    """Processes worklogs from the issues."""
     worklogs = []
+    try:
+        for issue in issues:
+            for worklog in jira.worklogs(issue):
+                worklogs.append(worklog.raw)
+        logger.info('Worklogs processed')
+        return worklogs
+    except Exception as e:
+        logger.error(f'Error processing worklogs: {e}')
+        raise
 
-    print('Retrieving worklogs from the issues')
-    for ikl in issue_keys_list:
-        worklog_ids = jira.worklogs(ikl)
-        for wk in worklog_ids:
-            worklogs.append(wk.raw)
 
-    print('Finished getting worklogs')
-    print('Writing data to disk')
-    file_writer.write_data_to_file(file_name, worklogs)
+if __name__ == '__main__':
+    stm('Jira worklogs script started ▶')
+    start_time = datetime.datetime.now()
 
-    # finish timestamp in the log
-    logger.info('Process Finished')
-    stm("Jira worklogs script finished successfully ✅. Completed in {} hours".format((
-        datetime.datetime.now() - start_time)/60/60))
-except:
-    stm("Jira worklogs script script terminated with error ⛔. Completed in {} hours".format((
-        datetime.datetime.now() - start_time)/60/60))
+    config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
+    config = read_config(config_file)
+
+    try:
+        jira = establish_jira_connection(config)
+        issues = retrieve_issues(jira, config)
+        worklogs = process_worklogs(jira, issues)
+        file_writer.write_data_to_file(config.get('Results', 'file_name'), worklogs, pretty_print=True)
+        logger.info('Data written to file')
+    except Exception as e:
+        logger.error(f'An error occurred: {e}')
+    finally:
+        end_time = datetime.datetime.now()
+        logger.info(f'Jira worklogs script completed in {end_time - start_time}')
